@@ -1,0 +1,10 @@
+{
+  "p4server": "31.190.47.14:1666",
+  "p4user": "generic",
+  "p4workspace": "generic_DESKTOP-DAVIDE_4420",
+  "project_dir": "C:\\Users\\Davide\\Documents\\Unreal Projects\\ProjectAnts",
+  "ue_build_tool": "C:\\Program Files\\Epic Games\\UE_5.5\\Engine\\Binaries\\DotNET\\UnrealBuildTool\\UnrealBuildTool.exe",
+  "change_desc": "BinariesByPy",
+  "project_filename": "Kindom_3.uproject",
+  "bRebuildProject": false
+}
