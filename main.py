@@ -42,6 +42,7 @@ def force_add_or_edit(p4, path, change_num):
 CONFIG_FILE = "./p4_config.json"
 if not os.path.exists(CONFIG_FILE):
     print(f"File di configurazione '{CONFIG_FILE}' non trovato.")
+    input("Assicurati che il file esista e premi Invio per uscire...")
     exit(1)
 
 with open(CONFIG_FILE, "r") as f:
@@ -125,6 +126,7 @@ try:
             force_add_or_edit(p4, full_path, change_num)
 
     print("Tutti i file sono stati processati.")
+    input("Premi Invio per continuare...")
 
 finally:
     p4.disconnect()
