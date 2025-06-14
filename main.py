@@ -4,12 +4,8 @@ import shutil
 import subprocess
 from P4 import P4, P4Exception
 import stat
-import pathlib
 
 def make_writable(path):
-    """
-    Rimuove il flag di sola lettura da tutti i file e cartelle sotto il percorso specificato.
-    """
     for root, dirs, files in os.walk(path):
         for name in files:
             filepath = os.path.join(root, name)
@@ -23,35 +19,27 @@ def make_writable(path):
                 os.chmod(dirpath, stat.S_IWRITE)
             except Exception as e:
                 print(f"Errore nel rendere scrivibile {dirpath}: {e}")
-    # Rendi scrivibile anche la root
     try:
         os.chmod(path, stat.S_IWRITE)
     except Exception as e:
         print(f"Errore nel rendere scrivibile {path}: {e}")
 
-def try_add_or_edit(p4, path, change_num):
+def force_add_or_edit(p4, path, change_num):
     try:
-        # Prova ad aggiungere il file
-        p4.run_add("-c", change_num, path)
-        print(f"Aggiunto: {path}")
-    except P4Exception as e:
-        err = str(e)
-        # Se il file è già sotto controllo versione
-        if "already opened for add" in err:
-            print(f"Già aperto per add: {path}")
-        elif "already exists" in err or "can't add existing file" in err:
-            # Apri il file per modifica
-            try:
-                p4.run_edit("-c", change_num, path)
-                print(f"Modificato: {path}")
-            except P4Exception as edit_err:
-                print(f"Errore su edit {path}: {edit_err}")
+        fstat = p4.run_fstat(path)
+        if fstat and "depotFile" in fstat[0]:
+            # Già sotto versionamento → forza edit
+            p4.run_edit("-c", change_num, path)
+            print(f"[EDIT] {path}")
         else:
-            print(f"Errore su add {path}: {err}")
+            # Non tracciato → forza add
+            p4.run_add("-c", change_num, path)
+            print(f"[ADD] {path}")
+    except P4Exception as e:
+        print(f"[ERRORE] {path}: {e}")
 
-# === Carica configurazione da JSON ===
+# === 1. Carica configurazione da JSON ===
 CONFIG_FILE = "./p4_config.json"
-
 if not os.path.exists(CONFIG_FILE):
     print(f"File di configurazione '{CONFIG_FILE}' non trovato.")
     exit(1)
@@ -71,19 +59,16 @@ REBUILD_BINARIES = config["bRebuildProject"]
 UE_PROJECT_FILE = os.path.join(PROJECT_DIR, PROJECT_FILENAME)
 BINARIES_DIR = os.path.join(PROJECT_DIR, "Binaries")
 
-if(REBUILD_BINARIES):
-# === 1. CANCELLA LA CARTELLA BINARIES ===
+# === 2. Rimozione e ricompilazione ===
+if REBUILD_BINARIES:
     if os.path.exists(BINARIES_DIR):
         print("Rendo la cartella Binaries scrivibile...")
         make_writable(BINARIES_DIR)
-
         print(f"Cancello {BINARIES_DIR}...")
         shutil.rmtree(BINARIES_DIR)
     else:
         print("Cartella Binaries già assente.")
 
-
-    # === 2. RICOMPILA IL PROGETTO CON UBT ===
     print("Compilazione progetto Unreal...")
     project_name = os.path.splitext(os.path.basename(UE_PROJECT_FILE))[0]
     target_name = f"{project_name}Editor"
@@ -103,9 +88,9 @@ if(REBUILD_BINARIES):
         print(f"Errore nella compilazione: {e}")
         exit(1)
 else:
-    print("Ricompilazione disabilitata, si assume che la cartella Binaries sia già presente e aggiornata.")
+    print("Ricompilazione disabilitata. Si assume che Binaries sia già presente e aggiornata.")
 
-# === 3. INTERFACCIA P4 ===
+# === 3. Connessione a Perforce ===
 p4 = P4()
 p4.port = P4SERVER
 p4.user = P4USER
@@ -115,7 +100,7 @@ try:
     p4.connect()
     p4.run_login()
 
-    # Cerca o crea una changelist con descrizione CHANGE_DESC
+    # === 4. Cerca o crea changelist ===
     changes = p4.run_changes("-s", "pending", "-u", P4USER, "-c", P4WORKSPACE)
     change_num = None
     for c in changes:
@@ -128,18 +113,18 @@ try:
         print("Creo una nuova changelist vuota...")
         new_change = p4.fetch_change()
         new_change["Description"] = CHANGE_DESC
-        new_change["Files"] = []  # Evita di includere modifiche non volute
+        new_change["Files"] = []
         saved = p4.save_change(new_change)
         change_num = saved[0].split()[1]
 
-
-    print(f"Aggiungo i file della cartella Binaries alla changelist {change_num}...")
+    # === 5. Forza add/edit dei file ===
+    print(f"Forzo l'aggiunta/edit dei file in {BINARIES_DIR} nella changelist {change_num}...")
     for root, dirs, files in os.walk(BINARIES_DIR):
         for file in files:
             full_path = os.path.abspath(os.path.join(root, file))
-            try_add_or_edit(p4, full_path, change_num)
+            force_add_or_edit(p4, full_path, change_num)
 
-    print("Tutti i file sono stati aggiunti correttamente.")
+    print("Tutti i file sono stati processati.")
 
 finally:
     p4.disconnect()

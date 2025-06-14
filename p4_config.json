@@ -6,5 +6,5 @@
   "ue_build_tool": "C:\\Program Files\\Epic Games\\UE_5.5\\Engine\\Binaries\\DotNET\\UnrealBuildTool\\UnrealBuildTool.exe",
   "change_desc": "BinariesByPy",
   "project_filename": "Kindom_3.uproject",
-  "bRebuildProject": false
+  "bRebuildProject": true
 }
