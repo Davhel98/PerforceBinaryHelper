@@ -50,6 +50,7 @@ with open(CONFIG_FILE, "r") as f:
 
 P4SERVER = config["p4server"]
 P4USER = config["p4user"]
+P4PASS = config["p4password"]
 P4WORKSPACE = config["p4workspace"]
 PROJECT_DIR = config["project_dir"]
 UE_BUILD_TOOL = config["ue_build_tool"]
@@ -87,6 +88,7 @@ if REBUILD_BINARIES:
         print("Compilazione completata.")
     except subprocess.CalledProcessError as e:
         print(f"Errore nella compilazione: {e}")
+        input("Assicurati che il file esista e premi Invio per uscire...")
         exit(1)
 else:
     print("Ricompilazione disabilitata. Si assume che Binaries sia già presente e aggiornata.")
@@ -99,6 +101,7 @@ p4.client = P4WORKSPACE
 
 try:
     p4.connect()
+    p4.password = P4PASS
     p4.run_login()
 
     # === 4. Cerca o crea changelist ===
@@ -130,3 +133,4 @@ try:
 
 finally:
     p4.disconnect()
+    input("Premere un tasto per continuare...")
